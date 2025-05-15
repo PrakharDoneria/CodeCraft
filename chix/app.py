@@ -97,6 +97,16 @@ class ChiXApp:
         # Ctrl+W to close current tab
         self.root.bind("<Control-w>", lambda e: self.main_panel.close_current_tab())
         
+        # Ctrl+S to save file
+        self.root.bind("<Control-s>", lambda e: self.main_panel.save_current_tab())
+        
+        # Ctrl+Shift+S to save file as
+        self.root.bind("<Control-Shift-S>", lambda e: self.main_panel.save_as_current_tab())
+        self.root.bind("<Control-Shift-s>", lambda e: self.main_panel.save_as_current_tab())
+        
+        # Ctrl+O to open file
+        self.root.bind("<Control-o>", lambda e: self.main_panel.open_file_dialog())
+        
         # Ctrl+Tab to switch tabs
         self.root.bind("<Control-Tab>", lambda e: self.main_panel.next_tab())
         self.root.bind("<Control-Shift-Tab>", lambda e: self.main_panel.prev_tab())

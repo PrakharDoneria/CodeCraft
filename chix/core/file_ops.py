@@ -10,6 +10,8 @@ import tkinter as tk
 import shutil
 import tempfile
 import mimetypes
+import time
+import uuid
 
 def new_file(state):
     """

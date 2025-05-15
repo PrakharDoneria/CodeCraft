@@ -301,8 +301,13 @@ class TabView:
         tab_data = self.tabs[tab_id]
         content = tab_data["editor"].get("1.0", "end-1c")
         
-        # Show save dialog
-        file_path = save_file_as(content)
+        # Get current file path if any
+        current_file_path = tab_data["file_path"]
+        
+        # Initialize file_path with the current path for the dialog
+        file_path = save_file_as(self.state, 
+                                 editor=tab_data["editor"], 
+                                 file_path=current_file_path)
         
         if file_path:
             # Update tab with new path
