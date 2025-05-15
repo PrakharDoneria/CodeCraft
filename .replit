@@ -26,3 +26,7 @@ waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "pip install -r attached_assets/requirements.txt && python main.py"]
+
+[[ports]]
+localPort = 5000
+externalPort = 80
