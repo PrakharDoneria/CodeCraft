@@ -1,0 +1,6 @@
+customtkinter
+pygments
+pyinstaller
+keyboard
+ttkbootstrap 
+pillow
