@@ -373,3 +373,90 @@ def add_recent_file(file_path, max_count=10):
                 f.write(f"{path}\n")
     except Exception:
         pass
+
+def get_temp_dir():
+    """
+    Get the temporary directory for autosaves
+    
+    Returns:
+        str: Path to temporary directory
+    """
+    temp_dir = os.path.join(tempfile.gettempdir(), "chix_editor")
+    os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
+
+def save_to_temp(content, file_id=None):
+    """
+    Save content to a temporary file
+    
+    Args:
+        content (str): Content to save
+        file_id (str, optional): ID for the temp file
+    
+    Returns:
+        str: Path to the temporary file
+    """
+    if not file_id:
+        file_id = str(uuid.uuid4())
+    
+    temp_dir = get_temp_dir()
+    temp_file = os.path.join(temp_dir, f"{file_id}.temp")
+    
+    try:
+        with open(temp_file, "w", encoding="utf-8") as f:
+            f.write(content)
+        return temp_file
+    except Exception as e:
+        print(f"Error saving temporary file: {e}")
+        return None
+
+def load_from_temp(file_id):
+    """
+    Load content from a temporary file
+    
+    Args:
+        file_id (str): ID of the temp file
+    
+    Returns:
+        str: Content of the temporary file
+    """
+    temp_dir = get_temp_dir()
+    temp_file = os.path.join(temp_dir, f"{file_id}.temp")
+    
+    if not os.path.exists(temp_file):
+        return None
+    
+    try:
+        with open(temp_file, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        print(f"Error loading temporary file: {e}")
+        return None
+
+def clean_temp_files(max_age_hours=24):
+    """
+    Clean up old temporary files
+    
+    Args:
+        max_age_hours (int): Maximum age in hours
+    """
+    temp_dir = get_temp_dir()
+    
+    if not os.path.exists(temp_dir):
+        return
+    
+    current_time = time.time()
+    max_age_seconds = max_age_hours * 60 * 60
+    
+    try:
+        for filename in os.listdir(temp_dir):
+            if not filename.endswith(".temp"):
+                continue
+                
+            file_path = os.path.join(temp_dir, filename)
+            file_age = current_time - os.path.getmtime(file_path)
+            
+            if file_age > max_age_seconds:
+                os.unlink(file_path)
+    except Exception as e:
+        print(f"Error cleaning temporary files: {e}")

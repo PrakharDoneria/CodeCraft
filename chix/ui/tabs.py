@@ -9,7 +9,8 @@ from chix.ui.widgets import EnhancedTextEditor, LineNumbers, TabButton, SearchRe
 from chix.ui.minimap import Minimap
 from chix.ui.theme import get_color
 from chix.utils.highlighter import highlight_syntax
-from chix.core.file_ops import save_file, save_file_as
+from chix.core.file_ops import save_file, save_file_as, save_to_temp, load_from_temp, clean_temp_files
+import uuid
 
 class TabView:
     """Tab view for managing multiple editor tabs"""
@@ -17,7 +18,7 @@ class TabView:
     def __init__(self, parent, state):
         self.parent = parent
         self.state = state
-        self.tabs = {}  # {tab_id: {"editor": editor, "file_path": path, "modified": bool}}
+        self.tabs = {}  # {tab_id: {"editor": editor, "file_path": path, "modified": bool, "temp_id": uuid}}
         self.tab_counter = 0
         self.current_tab_id = None
         
@@ -46,6 +47,29 @@ class TabView:
         self.current_editor = None
         self.current_minimap = None
         self.current_search_bar = None
+        
+        # Setup autosave
+        self.autosave_interval = 60000  # 60 seconds (in milliseconds)
+        self._setup_autosave()
+        
+        # Clean up old temp files on startup
+        clean_temp_files()
+        
+    def _setup_autosave(self):
+        """Set up the autosave timer"""
+        self._autosave_all_tabs()
+        self.parent.after(self.autosave_interval, self._setup_autosave)
+    
+    def _autosave_all_tabs(self):
+        """Autosave all open tabs to temp files"""
+        for tab_id, tab_data in self.tabs.items():
+            if tab_data["modified"]:
+                content = tab_data["editor"].get("1.0", "end-1c")
+                temp_id = tab_data.get("temp_id")
+                if not temp_id:
+                    temp_id = str(uuid.uuid4())
+                    tab_data["temp_id"] = temp_id
+                save_to_temp(content, temp_id)
         
         # Create initial tab if needed
         if not self.tabs:
@@ -129,6 +153,9 @@ class TabView:
                 # Insert error message
                 editor.insert("1.0", f"# Error loading file: {str(e)}\n\n")
         
+        # Generate a unique ID for temp files
+        temp_id = str(uuid.uuid4())
+        
         # Store tab information
         self.tabs[tab_id] = {
             "editor": editor,
@@ -137,8 +164,13 @@ class TabView:
             "file_path": file_path,
             "modified": False,
             "minimap": minimap,
-            "search_bar": search_bar
+            "search_bar": search_bar,
+            "temp_id": temp_id
         }
+        
+        # If content was provided but no file path, save to temp immediately
+        if content and not file_path:
+            save_to_temp(content, temp_id)
         
         # Select the new tab
         self.select_tab(tab_id)
