@@ -7,6 +7,7 @@ import tkinter as tk
 import os
 from chix.ui.theme import get_color
 from chix.ui.widgets import ClickableLabel
+from chix.utils.git_manager import GitManager
 import re
 
 class FileTreeNode:
@@ -51,6 +52,10 @@ class FileExplorer(ctk.CTkFrame):
         self.state = state
         self.root_path = state.get("current_directory", os.getcwd())
         self.tree_root = None
+        
+        # Initialize Git manager
+        self.git_manager = GitManager(self.root_path)
+        self.show_git_status = True
         
         # Create UI elements
         self._create_widgets()
@@ -97,6 +102,47 @@ class FileExplorer(ctk.CTkFrame):
             command=self._refresh
         )
         refresh_btn.pack(side="right", padx=2)
+        
+        # Git branch info section
+        self.branch_frame = ctk.CTkFrame(self, height=25, fg_color=get_color("bg_secondary"))
+        self.branch_frame.pack(fill="x", side="top")
+        
+        # Branch icon
+        branch_icon = ctk.CTkLabel(
+            self.branch_frame,
+            text="⑂",  # Git branch symbol
+            font=("Arial", 14),
+            width=20,
+            text_color=get_color("accent_primary")
+        )
+        branch_icon.pack(side="left", padx=(10, 0))
+        
+        # Branch name - Initialize with placeholder, then update it
+        self.branch_label = ctk.CTkLabel(
+            self.branch_frame,
+            text="Checking...",
+            font=("Arial", 11),
+            anchor="w"
+        )
+        
+        # Update after initialization
+        self.after(100, lambda: self.branch_label.configure(text=self._get_branch_name()))
+        self.branch_label.pack(side="left", padx=(0, 10), fill="x", expand=True)
+        
+        # Git status toggle button
+        self.git_toggle_btn = ctk.CTkButton(
+            self.branch_frame,
+            text="↻",
+            width=25,
+            height=20,
+            corner_radius=4,
+            command=self._refresh_git_status
+        )
+        self.git_toggle_btn.pack(side="right", padx=5)
+        
+        # Hide branch frame if not a git repository
+        if not self.git_manager.is_git_repo():
+            self.branch_frame.pack_forget()
         
         # Path display/selector
         path_frame = ctk.CTkFrame(self, height=30, fg_color="transparent")
@@ -271,10 +317,13 @@ int main() {
         root_node = FileTreeNode(root_path, is_dir=True)
         
         # Queue for BFS traversal with depth tracking
-        queue = [(root_node, 0)]  # (node, depth)
+        queue = []  # Using a list for the queue
+        queue.append((root_node, 0))  # (node, depth)
         
         while queue:
-            node, depth = queue.pop(0)
+            node_info = queue.pop(0)
+            node = node_info[0]
+            depth = node_info[1]
             
             # Don't go deeper than max_depth
             if depth > max_depth:
@@ -349,12 +398,19 @@ int main() {
         icon_label = ctk.CTkLabel(node_frame, text=icon, width=20)
         icon_label.pack(side="left")
         
+        # Check git status to determine text color
+        text_color = get_color("fg_primary")
+        if self.git_manager.is_git_repo() and self.show_git_status:
+            status_color = self._get_file_status_color(node.path)
+            if status_color:
+                text_color = status_color
+        
         # Node name as clickable label
         node_label = ClickableLabel(
             node_frame,
             text=node.name,
             anchor="w",
-            text_color=get_color("fg_primary"),
+            text_color=text_color,
             command=lambda n=node: self._on_node_click(n)
         )
         node_label.pack(side="left", fill="x", expand=True, padx=2)
@@ -393,6 +449,62 @@ int main() {
             if "main_panel" in self.state:
                 self.state["main_panel"].tab_view.open_file(node.path)
     
+    def _get_branch_name(self):
+        """Get current git branch name"""
+        if not self.git_manager.is_git_repo():
+            return "No Git Repository"
+        
+        branch = self.git_manager.get_current_branch()
+        if branch:
+            return branch
+        return "No Branch"
+    
+    def _refresh_git_status(self):
+        """Refresh git status information"""
+        # Update the branch name
+        self.branch_label.configure(text=self._get_branch_name())
+        
+        # Show/hide branch frame based on git repo status
+        if self.git_manager.is_git_repo():
+            self.branch_frame.pack(fill="x", side="top", after=self.canvas)
+        else:
+            self.branch_frame.pack_forget()
+        
+        # Refresh the file tree to show git status
+        self._refresh()
+    
+    def _toggle_git_status(self):
+        """Toggle display of git status indicators"""
+        self.show_git_status = not self.show_git_status
+        self._refresh()
+    
+    def _get_file_status_color(self, node_path):
+        """Get color for file based on git status"""
+        if not self.git_manager.is_git_repo() or not self.show_git_status:
+            return None
+        
+        # Try to get relative path
+        if self.root_path and os.path.isabs(node_path):
+            try:
+                rel_path = os.path.relpath(node_path, self.root_path)
+            except ValueError:
+                # File is outside repository
+                return None
+        else:
+            rel_path = node_path
+        
+        status = self.git_manager.get_file_status(rel_path)
+        if status == "modified":
+            return "#e2c08d"  # Yellow-orange color for modified
+        elif status == "untracked":
+            return "#81b88b"  # Green color for new/untracked
+        elif status == "staged":
+            return "#569cd6"  # Blue color for staged
+        elif status == "deleted":
+            return "#f14c4c"  # Red color for deleted
+        
+        return None
+    
     def _get_file_icon(self, node):
         """Get an appropriate icon for a file type"""
         if node.is_dir:
@@ -415,5 +527,12 @@ int main() {
             ".xml": "🔣",  # XML
             ".html": "🌐", # HTML
         }
+        
+        # Check git status and add indicator
+        status_color = self._get_file_status_color(node.path)
+        if status_color:
+            # If we have git status, we could modify the icon or add a status character
+            # but for simplicity, we'll just use the normal icon and color it in the node label
+            pass
         
         return icons.get(ext, "📄")  # Default file icon

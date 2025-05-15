@@ -396,6 +396,16 @@ class TabView:
         # Update tab button
         if tab_id in self.tab_buttons:
             self.tab_buttons[tab_id].mark_modified(modified)
+        
+        # If file is modified, save to temp immediately
+        if modified:
+            tab_data = self.tabs[tab_id]
+            content = tab_data["editor"].get("1.0", "end-1c")
+            temp_id = tab_data.get("temp_id")
+            if not temp_id:
+                temp_id = str(uuid.uuid4())
+                tab_data["temp_id"] = temp_id
+            save_to_temp(content, temp_id)
     
     def show_find_replace(self):
         """Show the find and replace dialog for the current tab"""
