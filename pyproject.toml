@@ -1,0 +1,12 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "customtkinter>=5.2.2",
+    "keyboard>=0.13.5",
+    "pygments>=2.19.1",
+    "pyinstaller>=6.13.0",
+    "ttkbootstrap>=1.13.5",
+]
